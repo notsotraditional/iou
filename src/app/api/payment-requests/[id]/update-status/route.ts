@@ -3,35 +3,30 @@ import { NextResponse } from "next/server"
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { status: newStatus } = await request.json()
     
-    // Extract ID from params (handling both Promise and direct params)
-    let paymentRequestId: string | undefined
-    
-    if (params instanceof Promise) {
-      const resolvedParams = await params
-      paymentRequestId = resolvedParams?.id
-    } else {
-      paymentRequestId = params?.id
-    }
+    // Extract ID from params (params is always a Promise in Next.js 15+)
+    const resolvedParams = await params
+    const paymentRequestId = resolvedParams.id
     
     // Fallback: extract ID from URL path if params didn't work
-    if (!paymentRequestId) {
+    let finalPaymentRequestId = paymentRequestId
+    if (!finalPaymentRequestId) {
       const url = new URL(request.url)
       const pathParts = url.pathname.split('/')
       const idIndex = pathParts.indexOf('payment-requests')
       if (idIndex >= 0 && pathParts[idIndex + 1]) {
-        paymentRequestId = pathParts[idIndex + 1]
+        finalPaymentRequestId = pathParts[idIndex + 1]
       }
     }
 
-    console.log("Update status request:", { paymentRequestId, newStatus, url: request.url })
+    console.log("Update status request:", { paymentRequestId: finalPaymentRequestId, newStatus, url: request.url })
 
-    if (!paymentRequestId) {
-      console.error("Missing payment request ID", { params, url: request.url })
+    if (!finalPaymentRequestId) {
+      console.error("Missing payment request ID", { params: resolvedParams, url: request.url })
       return NextResponse.json(
         { error: "Payment request ID is required" },
         { status: 400 }
@@ -61,7 +56,7 @@ export async function PATCH(
     const { data: paymentRequest, error: fetchError } = await supabase
       .from("payment_requests")
       .select("id, from_user, to_user, status")
-      .eq("id", paymentRequestId)
+      .eq("id", finalPaymentRequestId)
       .single()
 
     if (fetchError || !paymentRequest) {
@@ -104,7 +99,7 @@ export async function PATCH(
     const { error: updateError } = await supabase
       .from("payment_requests")
       .update({ status: newStatus })
-      .eq("id", paymentRequestId)
+      .eq("id", finalPaymentRequestId)
 
     if (updateError) {
       console.error("Error updating payment request:", updateError)

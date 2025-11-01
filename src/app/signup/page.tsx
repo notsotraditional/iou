@@ -63,8 +63,8 @@ export default function RegisterPage() {
       }
 
       if (data.user) {
-        // Redirect to home page or dashboard after successful registration
-        router.push("/")
+        // Redirect to dashboard after successful registration
+        router.push("/dashboard")
         router.refresh()
       }
     } catch {
